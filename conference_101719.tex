@@ -1,0 +1,105 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+% The preceding line is only needed to identify funding in the first footnote. If that is unneeded, please comment it out.
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+\begin{document}
+
+\title{Learning-Based Resource Allocation for 360-Degree Video Live Streaming with Field-of-View Prediction and Latent State Compression}
+
+\author{\IEEEauthorblockN{Rayn Tariq}
+\IEEEauthorblockA{\textit{Dept. of Computer Science and Engineering} \\
+\textit{PES University}\\
+Bengaluru, India \\
+email address or ORCID}
+\and
+\IEEEauthorblockN{Shashank Tiwari}
+\IEEEauthorblockA{\textit{Dept. of Electronics and Communication Engineering} \\
+\textit{PES University}\\
+Bengaluru, India \\
+email address or ORCID}
+\and
+\IEEEauthorblockN{Shashwat}
+\IEEEauthorblockA{\textit{Dept. of Electronics and Communication Engineering} \\
+\textit{PES University}\\
+Bengaluru, India \\
+email address or ORCID}
+\and
+\IEEEauthorblockN{Rishika Yadav}
+\IEEEauthorblockA{\textit{Dept. of Electronics and Communication Engineering} \\
+\textit{PES University}\\
+Bengaluru, India \\
+email address or ORCID}
+\and
+\IEEEauthorblockN{Vamsi Krishna Tumuluru}
+\IEEEauthorblockA{\textit{Dept. of Electronics and Communication Engineering} \\
+\textit{PES University}\\
+Bengaluru, India \\
+vamsikrishnatumuluru@pes.edu}
+}
+
+\maketitle
+
+% NOTE: IEEE requires no symbols, special characters, footnotes or math in the abstract.
+\begin{abstract}
+Live streaming of 360-degree video to head-mounted displays demands data rates far beyond those of conventional video, yet a viewer sees only the portion of the panorama inside the field of view. Because live content cannot be buffered far ahead, the edge server must decide in every interval how to divide scarce wireless bandwidth and edge computing capacity among the video tiles before the viewers look at them. This paper studies resource allocation for multi-user 360-degree live streaming with the objective of maximizing the delivered video quality while minimizing access delay, spatial quality variation across the viewport and edge processing cost. The proposed framework has three learned stages. First, a lightweight convolutional field-of-view predictor forecasts, from the recent viewing behavior of the audience, the probability that each tile of the next segment will be watched. Second, a conditional variational autoencoder trained with an adversarial discriminator compresses this tile-level prediction into a compact latent representation, reducing the decision state from two hundred tile probabilities to ten latent values. Third, a policy network trained with the deep deterministic policy gradient algorithm maps the compressed state and the channel statistics of the users to a joint allocation of bandwidth and computing resources across scalable video coding layers. The framework is evaluated on a public head-mounted display viewing dataset over a simulated wireless channel with path loss, shadowing and Rayleigh fading.
+\end{abstract}
+
+\begin{IEEEkeywords}
+360-degree video, live streaming, resource allocation, field-of-view prediction, variational autoencoder, deep reinforcement learning, edge computing
+\end{IEEEkeywords}
+
+\section{Introduction}
+
+360-degree video is the core content format of virtual reality (VR) and augmented reality applications, letting a viewer wearing a head-mounted display (HMD) look in any direction of a recorded or live scene. This immersion comes at a heavy network cost. A high-quality 360-degree video can consume bandwidth in the gigabit-per-second range \cite{b1}, VR places some of the strictest throughput, delay and packet-loss requirements on next-generation networks \cite{b3}, and the quality of experience (QoE) of mobile viewers is limited by insufficient and fluctuating wireless capacity \cite{b10}. At any instant, however, the viewer sees only the part of the sphere inside the field of view (FoV). Viewport-adaptive streaming therefore divides each frame into tiles and delivers the tiles likely to be watched at high quality and the rest at low quality \cite{b5}, \cite{b10}. Scalable video coding (SVC) extends this idea by encoding each tile as a base layer and several enhancement layers, so that the quality of a tile can be raised one layer at a time \cite{b2}, \cite{b9}.
+
+Live streaming makes this harder than on-demand playback. Content is generated as it is watched, so the client cannot keep a long playback buffer, and the decision of which tiles to send at which quality must be taken before the viewer turns their head. The FoV must therefore be predicted. Prediction methods range from time-series viewport prediction combined with video features \cite{b5} and long-term prediction from eye-gaze heatmaps of similar users \cite{b1} to saliency-driven quality adaptation \cite{b10}. When many viewers watch the same live stream, the audience as a whole also carries information: viewers tend to concentrate on the same regions, which has been exploited to cluster users by their predicted FoV for multicast delivery \cite{b11}, \cite{b12}.
+
+Even with an accurate prediction, the edge server still faces a resource allocation problem, and four quantities pull it in different directions. The first is \emph{video quality}: more bandwidth for a tile allows more SVC layers to be delivered. The second is \emph{access delay}: a segment that does not reach the viewer before its playout deadline is useless, and processing and decoding time adds to the transmission time \cite{b4}, \cite{b8}. The third is \emph{spatial quality variation}: neighbouring tiles inside the viewport at very different qualities degrade the experience, and QoE models therefore penalise quality variance \cite{b4}, \cite{b8}. The fourth is \emph{processing cost}: offloading decoding and rendering to a multi-access edge computing (MEC) server reduces the load on the headset but consumes limited edge computing capacity \cite{b4}, \cite{b7}, \cite{b9}.
+
+A large body of work addresses parts of this problem. Chakareski and Khan \cite{b2} formulate rate--distortion--computing optimisation for live 360-degree streaming to heterogeneous 5G clients, and Chakareski and Gupta \cite{b9} jointly allocate mmWave data rate and edge and user computing resources to maximise the minimum immersion fidelity. Huang \textit{et al.} \cite{b4} show that decoding latency can exceed transmission latency and propose a latency-aware quality adaptation algorithm. Yang \textit{et al.} \cite{b6} allocate forwarding resources with proactive frame dropping, Zhong \textit{et al.} \cite{b7} jointly optimise multicast delivery and transcoding offloading, and Pei \textit{et al.} \cite{b8} reserve communication and computing resources for edge-assisted extended reality under quality, quality-variation and latency constraints. Liu \textit{et al.} \cite{b12} decompose 360-degree multicast into user grouping, resource allocation and bitrate adaptation, while Vergados \textit{et al.} \cite{b3} adapt the VR data rate with a fuzzy controller over TCP. Most of these methods rely on optimisation or heuristic solvers that are re-run for every decision and assume an accurate model of the system. Learning-based approaches avoid this: reinforcement learning (RL) has been used for bitrate adaptation on MEC platforms \cite{b5}, for correcting saliency-driven quality allocation \cite{b10}, for spectrum and power allocation in vehicular networks \cite{b15}, and, with the deep deterministic policy gradient (DDPG) algorithm, for continuous bandwidth allocation in computation offloading \cite{b16}.
+
+Two gaps remain. First, only a few works, such as \cite{b2}, \cite{b4} and \cite{b9}, account for FoV prediction, bitrate adaptation, access delay and user-side processing together, and none of them reduce the size of the decision state. Second, a tile-level FoV prediction is high-dimensional: a 20 by 10 tile grid gives 200 values per interval, which is a large state for an RL agent and slows its training and decisions. Generative models can learn compact representations of such spatio-temporal data. Saxena and Cao \cite{b13} combine variational inference with adversarial training for spatio-temporal prediction, and Nie \textit{et al.} \cite{b14} use a conditional variational autoencoder with a generative adversarial network (CVAE-GAN) to predict content popularity before a multi-agent DRL decision. To the best of our knowledge, such a compressed latent state has not been used to drive resource allocation for 360-degree live streaming.
+
+This paper addresses these gaps. We study the problem of allocating bandwidth and edge computing resources for 360-degree video live streaming so as to maximise the delivered quality while minimising access delay, spatial quality variation and processing cost. The main contributions are as follows.
+\begin{itemize}
+\item We design a lightweight convolutional neural network (CNN) based FoV predictor that forecasts, from the recent combined viewing behaviour of the audience, the probability that each tile of the next interval will be viewed.
+\item We design a CVAE-GAN, following \cite{b14}, that compresses the predicted 200-tile frame into a 10-dimensional latent representation, one value per SVC layer, and we show how input normalisation and the choice of loss weights prevent this latent representation from collapsing on low-variance crowd frames.
+\item We design a DDPG-based policy network \cite{b16} that takes the compressed state together with exponentially weighted channel statistics of the users and outputs a joint allocation of bandwidth and computing resources across SVC layers, trained with a reward that combines quality, access delay, spatial quality variation and processing cost.
+\item We validate the framework with a comparative study on a public HMD viewing dataset \cite{b17} over a simulated wireless channel with path loss, log-normal shadowing and Rayleigh fading \cite{b15}.
+\end{itemize}
+
+The rest of the paper is organised as follows. Section~II describes the system model and problem formulation. Section~III presents the FoV predictor, the CVAE-GAN state compressor and the policy network. Section~IV reports the simulation results, and Section~V concludes the paper.
+
+% ---------------------------------------------------------------------------
+% Sections II--V to be written: System Model and Problem Formulation,
+% Proposed Framework, Simulation Results, Conclusion.
+% ---------------------------------------------------------------------------
+
+\begin{thebibliography}{00}
+\bibitem{b1} P. Dong, R. Shen, X. Xie, Y. Li, Y. Zuo, and L. Zhang, ``Predicting long-term field of view in 360-degree video streaming,'' \textit{IEEE Netw.}, vol. 37, no. 3, pp. 26--33, May/Jun. 2023, doi: 10.1109/MNET.106.2100449.
+\bibitem{b2} J. Chakareski and M. Khan, ``Live 360$^\circ$ video streaming to heterogeneous clients in 5G networks,'' \textit{IEEE Trans. Multimedia}, vol. 26, pp. 8860--8873, 2024, doi: 10.1109/TMM.2024.3382910.
+\bibitem{b3} D. J. Vergados, A. Michalas, A.-A. A. Boulogeorgos, S. Nikolaou, N. Asimopoulos, and D. D. Vergados, ``Adaptive virtual reality streaming: A case for TCP,'' \textit{IEEE Trans. Netw. Service Manag.}, vol. 21, no. 2, pp. 1518--1533, Apr. 2024, doi: 10.1109/TNSM.2023.3328770.
+\bibitem{b4} L. Huang, Y. Li, H. Liang, K. Chi, and Y. Wu, ``Enhanced VR experience with edge computing: The impact of decoding latency,'' \textit{IEEE Trans. Mobile Comput.}, vol. 24, no. 7, pp. 6275--6292, Jul. 2025, doi: 10.1109/TMC.2025.3541741.
+\bibitem{b5} S. Kumar, A. Franklin A, J. Jin, and Y.-N. Dong, ``Seer: Learning-based 360$^\circ$ video streaming for MEC-equipped cellular networks,'' \textit{IEEE Trans. Netw. Sci. Eng.}, vol. 10, no. 6, pp. 3308--3319, Nov.--Dec. 2023, doi: 10.1109/TNSE.2023.3257403.
+\bibitem{b6} P. Yang, Q. Feng, Z. Huang, J. Chen, and N. Zhang, ``Hierarchical forwarding resource allocation with proactive frame dropping for VR video streaming,'' \textit{IEEE Trans. Netw. Sci. Eng.}, vol. 13, pp. 1243--1257, 2026, doi: 10.1109/TNSE.2025.3593299.
+\bibitem{b7} L. Zhong \textit{et al.}, ``A multi-user cost-efficient crowd-assisted VR content delivery solution in 5G-and-beyond heterogeneous networks,'' \textit{IEEE Trans. Mobile Comput.}, vol. 22, no. 8, pp. 4405--4421, Aug. 2023, doi: 10.1109/TMC.2022.3162147.
+\bibitem{b8} Y. Pei \textit{et al.}, ``Interaction-aware resource reservation for edge-assisted mobile extended reality,'' in \textit{Proc. IEEE/CIC Int. Conf. Commun. China (ICCC)}, Shanghai, China, 2025, pp. 1--6, doi: 10.1109/ICCC65529.2025.11149304.
+\bibitem{b9} J. Chakareski and S. Gupta, ``Multi-connectivity and edge computing for ultra-low-latency lifelike virtual reality,'' in \textit{Proc. IEEE Int. Conf. Multimedia Expo (ICME)}, London, U.K., 2020, pp. 1--6, doi: 10.1109/ICME46284.2020.9102856.
+\bibitem{b10} S. Wang \textit{et al.}, ``Robust saliency-driven quality adaptation for mobile 360-degree video streaming,'' \textit{IEEE Trans. Mobile Comput.}, vol. 23, no. 2, pp. 1312--1329, Feb. 2024, doi: 10.1109/TMC.2023.3235103.
+\bibitem{b11} A. Saadallah, S.-M. Senouci, I. El-Korbi, and P. Brunet, ``Dynamic field-of-view-based clustering for efficient 360-degree multicast streaming,'' in \textit{Proc. IEEE Global Commun. Conf. (GLOBECOM)}, Cape Town, South Africa, 2024, pp. 602--607, doi: 10.1109/GLOBECOM52923.2024.10901187.
+\bibitem{b12} Z. Liu, X. Tan, S. Wang, Y. Pan, Z. Tai, and P. Xie, ``Adaptive multicasting for MEC-assisted 360-degree video streaming,'' in \textit{Proc. 20th Int. Conf. Mobility, Sensing Netw. (MSN)}, Harbin, China, 2024, pp. 866--873, doi: 10.1109/MSN63567.2024.00120.
+\bibitem{b13} D. Saxena and J. Cao, ``Multimodal spatio-temporal prediction with stochastic adversarial networks,'' \textit{ACM Trans. Intell. Syst. Technol.}, vol. 13, no. 2, Art. no. 18, pp. 1--23, 2022, doi: 10.1145/3458025.
+\bibitem{b14} X. Nie, C. Wang, T. Zhou, Q. Zhou, X. Zhu, and J. Zhang, ``Mobility-aware cooperative caching in IoVs based on secure asynchronous federated and deep reinforcement learning,'' \textit{IEEE Internet Things J.}, vol. 12, no. 12, pp. 20572--20588, Jun. 2025, doi: 10.1109/JIOT.2025.3544368.
+\bibitem{b15} L. Liang, H. Ye, and G. Y. Li, ``Spectrum sharing in vehicular networks based on multi-agent reinforcement learning,'' \textit{IEEE J. Sel. Areas Commun.}, vol. 37, no. 10, pp. 2282--2292, Oct. 2019.
+\bibitem{b16} N. K. Prakash, M. Bhargava, J. Prakash, G. Matadh, and V. K. Tumuluru, ``Reliable V2V computation offloading using deep reinforcement learning,'' in \textit{Proc. 9th Int. Conf. Man-Machine Syst. (ICoMMS)}, Malacca, Malaysia, 2025, doi: 10.1109/ICOMMS66553.2025.11200316.
+\bibitem{b17} W.-C. Lo, C.-L. Fan, J. Lee, C.-Y. Huang, K.-T. Chen, and C.-H. Hsu, ``360$^\circ$ video viewing dataset in head-mounted virtual reality,'' in \textit{Proc. 8th ACM Multimedia Syst. Conf. (MMSys)}, Taipei, Taiwan, 2017, pp. 211--216, doi: 10.1145/3083187.3083219.
+\end{thebibliography}
+
+\end{document}
