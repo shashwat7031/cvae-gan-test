@@ -28,11 +28,16 @@ reasoning and the full results.
 
 ```
 predictor_vae/
-├── dataset/360dataset/sensory/tile/    input: one <video>_<user>_tile.csv per viewer (50 viewers)
+├── dataset/360dataset/sensory/tile/<video>/   input: one <prefix>_<user>_tile.csv per viewer (10 videos × 50 viewers)
 ├── predictor/
-│   ├── fov_predictor.ipynb             trains the FoV predictor and saves its weights
-│   ├── predictor_weights_trained.pt    the pretrained predictor (written by the notebook)
-│   └── figures/
+│   ├── make_video_predictors.py        builds and runs one copy of the coaster1 notebook per video
+│   ├── fov_videos_summary.md           RMSE of every per-video predictor and how they were trained
+│   ├── summary_rmse.csv                the same RMSE values, one row per video
+│   ├── <video>/                        coaster1, coaster2, diving, drive, game, landscape, pacman, panel, ride, sport
+│   │   ├── fov_predictor_<video>.ipynb     trains the FoV predictor of that video and saves its weights
+│   │   ├── predictor_weights_<video>.pt    the frozen predictor of that video
+│   │   └── figures/
+│   └── figures/rmse_by_video.png       RMSE of every per-video predictor
 ├── vae/
 │   ├── cvae_gan.ipynb                              the CVAE-GAN explained step by step, one run with equal weights
 │   ├── cvae_gan_diff_weights.ipynb                 test 1: different loss weights
@@ -56,7 +61,8 @@ pip install -r requirements.txt
 Open each notebook with the `.venv` interpreter and run it from its own folder (all paths are relative). Run the
 notebooks in this order:
 
-1. `predictor/fov_predictor.ipynb`
+1. `predictor/coaster1/fov_predictor_coaster1.ipynb` (the predictor used by `vae/`). To train a frozen predictor for every video, run
+   `python predictor/make_video_predictors.py --run` instead; see `predictor/fov_videos_summary.md`.
 2. `vae/cvae_gan.ipynb` (optional: explains the model)
 3. `vae/cvae_gan_diff_weights.ipynb`, then `vae/cvae_gan_normalised_tiles.ipynb`, then
    `vae/cvae_gan_normalised_and_diff_weights.ipynb`

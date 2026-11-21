@@ -1,9 +1,9 @@
 """Build (and optionally run) one FoV-predictor notebook per video in the dataset.
 
-Every notebook is a copy of predictor/fov_predictor.ipynb with only these changes:
-  - Cfg.video is set to that video,
-  - paths point one folder deeper (each notebook lives in predictor/<video>/),
-  - the checkpoint is written to predictor_weights_<video>.pt.
+The template is predictor/coaster1/fov_predictor_coaster1.ipynb. Every other video's notebook is a copy of it with
+only the video changed: Cfg.video / Cfg.folder / Cfg.prefix (its folder under sensory/tile/ and the filename prefix of
+its CSVs, e.g. folder coaster1 holds coaster_userNN_tile.csv), the paths and texts that name the video, and the
+checkpoint name predictor_weights_<video>.pt. Each notebook lives in predictor/<video>/ with its figures/ and .pt.
 
 Usage (from the repo root or from predictor/):
     python predictor/make_video_predictors.py            # build notebooks only
@@ -15,14 +15,23 @@ import argparse, glob, os, re, sys
 import nbformat
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-TEMPLATE = os.path.join(HERE, "fov_predictor.ipynb")
+TEMPLATE_VIDEO, TEMPLATE_PREFIX = "coaster1", "coaster"
+TEMPLATE = os.path.join(HERE, TEMPLATE_VIDEO, f"fov_predictor_{TEMPLATE_VIDEO}.ipynb")
 TILE_DIR = os.path.join(HERE, "..", "dataset", "360dataset", "sensory", "tile")
 
 
 def videos_in_dataset():
+    # one video per sub-folder of sensory/tile/ that holds <prefix>_userNN_tile.csv files
+    return sorted(d for d in os.listdir(TILE_DIR)
+                  if os.path.isdir(os.path.join(TILE_DIR, d)) and glob.glob(os.path.join(TILE_DIR, d, "*_tile.csv")))
+
+
+def prefix_of(folder):
     rx = re.compile(r"^(.*)_user\d+_tile\.csv$")
-    return sorted({m.group(1) for p in glob.glob(os.path.join(TILE_DIR, "*_tile.csv"))
-                   if (m := rx.match(os.path.basename(p)))})
+    prefixes = {m.group(1) for p in glob.glob(os.path.join(TILE_DIR, folder, "*_tile.csv"))
+                if (m := rx.match(os.path.basename(p)))}
+    assert len(prefixes) == 1, f"expected one filename prefix in {folder}/, found {sorted(prefixes)}"
+    return prefixes.pop()
 
 
 def replace_once(src, old, new, where):
@@ -31,36 +40,23 @@ def replace_once(src, old, new, where):
 
 
 def build_notebook(video):
+    prefix = prefix_of(video)
     nb = nbformat.read(TEMPLATE, as_version=4)
-    weights = f"predictor_weights_{video}.pt"
-    for i, cell in enumerate(nb.cells):
+    for cell in nb.cells:
         s = cell.source
-        s = s.replace("predictor_weights_trained.pt", weights)
-        if cell.cell_type == "markdown":
-            s = s.replace("coaster_user*_tile.csv", f"{video}_user*_tile.csv")
-            s = s.replace("run it with predictor/ as the working directory",
-                          f"run it with predictor/{video}/ as the working directory")
-            s = s.replace("└── predictor/\n    ├── fov_predictor.ipynb ",
-                          f"└── predictor/{video}/\n    ├── fov_predictor_{video}.ipynb")
-            if i == 0:
-                s = replace_once(s, "# Field-of-view (FoV) predictor $f_\\theta$, order 5",
-                                 f"# Field-of-view (FoV) predictor $f_\\theta$, order 5: video `{video}`",
-                                 "title cell")
-        else:
-            if 'DATA_ROOT = os.path.join("..", "dataset", "360dataset")' in s:
-                s = s.replace('DATA_ROOT = os.path.join("..", "dataset", "360dataset")',
-                              'DATA_ROOT = os.path.join("..", "..", "dataset", "360dataset")')
-                s = s.replace("run the notebook with predictor/ as the working directory",
-                              f"run the notebook with predictor/{video}/ as the working directory")
-                s = s.replace("#   ../dataset/360dataset/sensory/tile/", "#   ../../dataset/360dataset/sensory/tile/")
-            if 'video: str = "coaster"' in s:
-                s = s.replace('video: str = "coaster"', f'video: str = "{video}"')
+        if cell.cell_type == "code" and 'video: str = "' in s:      # the Cfg cell: set video, folder, prefix
+            s = replace_once(s, f'video: str = "{TEMPLATE_VIDEO}" ', f'video: str = "{video}" ', "Cfg cell")
+            s = replace_once(s, f'folder: str = "{TEMPLATE_VIDEO}" ', f'folder: str = "{video}" ', "Cfg cell")
+            s = replace_once(s, f'prefix: str = "{TEMPLATE_PREFIX}" ', f'prefix: str = "{prefix}" ', "Cfg cell")
+        else:                                                       # paths, file names and titles naming the video
+            s = s.replace(f"{TEMPLATE_VIDEO}/{TEMPLATE_PREFIX}_user", f"{video}/{prefix}_user")
+            s = s.replace(TEMPLATE_VIDEO, video)
         cell.source = s
         if cell.cell_type == "code":
             cell.outputs, cell.execution_count = [], None
     # sanity: the video really changed and no stale paths remain
     code = "\n".join(c.source for c in nb.cells if c.cell_type == "code")
-    assert f'video: str = "{video}"' in code and "predictor_weights_trained.pt" not in code
+    assert f'video: str = "{video}"' in code and f"predictor_weights_{video}.pt" in code
     out_dir = os.path.join(HERE, video)
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, f"fov_predictor_{video}.ipynb")

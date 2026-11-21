@@ -1,5 +1,5 @@
 video,rmse_all_50,rmse_test_group,avg_occupancy_all_50,avg_occupancy_test_group,repeat_last_all_50,repeat_last_test_group,base_rate
-coaster,0.2729,0.2601,0.3716,0.3689,0.3183,0.303,0.1654
+coaster1,0.2729,0.2601,0.3716,0.3689,0.3183,0.303,0.1654
 coaster2,0.264,0.2616,0.3673,0.3653,0.3114,0.302,0.1607
 diving,0.3903,0.3903,0.3939,0.3944,0.4469,0.4137,0.192
 drive,0.288,0.2883,0.3678,0.3683,0.3529,0.3292,0.1613
