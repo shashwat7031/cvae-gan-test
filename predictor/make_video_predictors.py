@@ -8,7 +8,7 @@ checkpoint name predictor_weights_<video>.pt. Each notebook lives in predictor/<
 Usage (from the repo root or from predictor/):
     python predictor/make_video_predictors.py            # build notebooks only
     python predictor/make_video_predictors.py --run      # build, execute, and write summary_rmse.csv
-    python predictor/make_video_predictors.py --run --videos diving sport
+    python predictor/make_video_predictors.py --run --videos pacman sport
 """
 import argparse, glob, os, re, sys
 

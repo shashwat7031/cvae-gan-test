@@ -28,12 +28,13 @@ reasoning and the full results.
 
 ```
 predictor_vae/
-├── dataset/360dataset/sensory/tile/<video>/   input: one <prefix>_<user>_tile.csv per viewer (10 videos × 50 viewers)
+├── dataset/360dataset/sensory/tile/<video>/   input: one <prefix>_<user>_tile.csv per viewer (5 videos × 50 viewers)
 ├── predictor/
 │   ├── make_video_predictors.py        builds and runs one copy of the coaster1 notebook per video
 │   ├── fov_videos_summary.md           RMSE of every per-video predictor and how they were trained
+│   ├── cv_predictors.py                held-out RMSE of every predictor (5-fold over viewers), into summary_rmse.csv
 │   ├── summary_rmse.csv                the same RMSE values, one row per video
-│   ├── <video>/                        coaster1, coaster2, diving, drive, game, landscape, pacman, panel, ride, sport
+│   ├── <video>/                        coaster1, coaster2, game, pacman, sport (the 5 with the lowest error)
 │   │   ├── fov_predictor_<video>.ipynb     trains the FoV predictor of that video and saves its weights
 │   │   ├── predictor_weights_<video>.pt    the frozen predictor of that video
 │   │   └── figures/
@@ -74,14 +75,23 @@ these results instead of training again, unless `RERUN = True` is set in its fir
 
 For each viewer, the tile CSV is turned into a 10 × 20 map (rows = latitude, columns = longitude) with a 1 on every tile
 in the viewer's field of view, sampled once every 5 s. A small convolutional network with 3,073 weights takes the last
-five maps and predicts the next one, as a probability for each tile. The predictor is trained for 494 epochs, each on a
-random group of 10 of the 50 viewers, and its trained weights are saved as a **pretrained predictor** for use by the CVAE-GAN.
+five maps and predicts the next one, as a probability for each tile. Every video has its own predictor (same network,
+its own weights). It is trained with Adam on binary cross-entropy, 20 passes over training pairs that start every
+5 frames, and its trained weights are saved as a **pretrained predictor** for use by the CVAE-GAN.
 
-| test RMSE (lower is better) | all 50 viewers | held-out group |
+Held-out RMSE of `coaster1`, the predictor the CVAE-GAN uses (5-fold cross-validation over viewers,
+`predictor/cv_predictors.py`; all five videos are in `predictor/fov_videos_summary.md`):
+
+| held-out RMSE (lower is better) | single viewer | 10-viewer crowd (the CVAE-GAN's input) |
 |---|---|---|
-| FoV predictor | 0.2729 | 0.2601 |
-| repeat the last map | 0.3183 | 0.3030 |
-| average tile occupancy | 0.3716 | 0.3689 |
+| FoV predictor | 0.2546 ± 0.0191 | **0.0997 ± 0.0084** |
+| repeat the last map | 0.3175 | 0.1207 |
+
+> **Note.** The `coaster1` weights were retrained after the CVAE-GAN results in sections 3–7 were produced. Those
+> results, `vae/results/` and `vae/cvaegan_encoder.pt` still come from the earlier predictor (494 plain
+> gradient-descent steps; RMSE 0.2729 on all 50 viewers). The three `vae/` test notebooks also retrain a predictor in
+> every fold with their own copy of that old procedure (`train_predictor`). To bring the CVAE-GAN in line, switch
+> `train_predictor` to the new recipe and rerun the notebooks with `RERUN = True`.
 
 ## 2. What the CVAE-GAN compresses
 
