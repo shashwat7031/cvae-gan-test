@@ -83,7 +83,7 @@ After training, every weight gets `requires_grad = False`. The checkpoint stores
 
 ## 3. Results
 
-Each notebook trains on all 50 viewers, so the RMSE it prints is a fit to its own training data. The honest scores
+Each notebook trains on all 50 viewers, so the RMSE it prints is a fit to its own training data. The held-out scores
 come from `cv_predictors.py`. The 50 viewers are split into 5 folds (viewer $i$ goes to fold $i \bmod 5$, as in the
 CVAE-GAN notebooks). A predictor is trained on 40 viewers with the recipe above and scored on the other 10, at the 7
 target times $k = 6, \dots, 12$, and this is repeated for every fold. Two errors are measured:
@@ -129,7 +129,7 @@ Each notebook saves the same five figures in `<video>/figures/`: one viewer's 12
 The crowd at 60 s: the actual share of viewers looking at each tile, the mean of the 50 per-viewer predictions, the
 predictor applied to the crowd frames, and the difference between the prediction and the actual crowd.
 
-### coaster1 (the predictor used by the CVAE-GAN)
+### coaster1
 
 ![coaster1 crowd heatmap](coaster1/figures/crowd_heatmap.png)
 
@@ -149,6 +149,5 @@ One viewer of the test group: the five input maps (top row), and the actual and 
    different input, and both would change what the CVAE-GAN receives.
 4. **Which file to use.** For video `<video>`, load `predictor/<video>/predictor_weights_<video>.pt`.
 
-The CVAE-GAN notebooks in `vae/` use the coaster1 predictor, `predictor/coaster1/predictor_weights_coaster1.pt`, and read
-the tile CSVs from `dataset/360dataset/sensory/tile/coaster1/`. Their results were produced with the earlier coaster1
-weights; see the note in `README.md` section 1.
+Every video also has its own CVAE-GAN, in `vae/<video>/`. Its notebooks load that video's predictor and read the tile
+CSVs of that video only, so each video ends with its own loss weights and its own frozen encoder (`README.md`).
